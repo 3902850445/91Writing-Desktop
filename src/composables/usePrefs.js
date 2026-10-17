@@ -23,8 +23,12 @@ const prefs = ref({
   writerPaper: 'default',
   /** default chapter word goal (0 = off) */
   chapterWordGoal: 0,
-  /** autosave delay ms */
-  autosaveMs: 800
+   /** autosave delay ms */
+   autosaveMs: 800,
+   /** 沉浸式导航：开启后全局隐藏底部导航栏，靠边缘手势返回 */
+   immersiveNav: false,
+   /** 沉浸式导航时是否显示返回按钮（左上角） */
+   immersiveShowBack: true
 })
 let loaded = false
 
@@ -44,9 +48,11 @@ function load() {
         pomodoroMinutes: 0,
         preferChapterSummary: true,
         writerPaper: 'default',
-        chapterWordGoal: 0,
-        autosaveMs: 800
-      }
+         chapterWordGoal: 0,
+         autosaveMs: 800,
+         immersiveNav: false,
+         immersiveShowBack: true
+       }
       prefs.value = { ...defaults, ...JSON.parse(raw) }
     }
   } catch {
@@ -150,6 +156,21 @@ export function usePrefs() {
     save()
   }
 
+  function setImmersiveNav(on) {
+    prefs.value.immersiveNav = !!on
+    save()
+  }
+
+  function toggleImmersiveNav() {
+    prefs.value.immersiveNav = !prefs.value.immersiveNav
+    save()
+  }
+
+  function setImmersiveShowBack(on) {
+    prefs.value.immersiveShowBack = !!on
+    save()
+  }
+
   return {
     prefs,
     setTheme,
@@ -162,11 +183,14 @@ export function usePrefs() {
     setPreferChapterSummary,
     setWriterPaper,
     setChapterWordGoal,
-    setAutosaveMs,
-    toggleReadingMode,
-    applyTheme,
-    load
-  }
+     setAutosaveMs,
+     toggleReadingMode,
+     setImmersiveNav,
+     toggleImmersiveNav,
+     setImmersiveShowBack,
+     applyTheme,
+     load
+   }
 }
 
 if (typeof window !== 'undefined') {

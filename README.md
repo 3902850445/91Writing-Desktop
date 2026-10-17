@@ -1,4 +1,4 @@
-# 91写作 - 跨平台桌面应用
+# 91写作 - 跨平台桌面应用 v2.8.0
 
 基于 Tauri 2 + Vue 3 的跨平台写作应用，支持 Windows、macOS、Linux、Android。
 
@@ -8,16 +8,24 @@
 91Writing-Desktop/
 ├── src/                    # Vue 3 前端源码
 │   ├── views/mobile/       # 12 个移动端视图组件
+│   ├── components/         # 公共组件
+│   │   ├── OrientationToggle.vue   # 横竖屏切换
+│   │   └── GlobalAssistant.vue     # AI 全局助手（悬浮按钮 + 侧边抽屉）
 │   ├── composables/        # Vue 组合式函数
-│   ├── services/           # 服务层（API、存储等）
-│   ├── layouts/            # 布局组件（MobileShell）
-│   ├── utils/              # 工具函数
-│   └── styles/             # 样式文件
+│   │   ├── useGlobalChat.js        # 全局 AI 对话（上下文感知）
+│   │   ├── useChat.js               # 单小说 AI 对话
+│   │   ├── usePrefs.js              # 用户偏好（含沉浸式导航）
+│   │   └── ...其他 17 个组合式函数
+│   ├── services/           # 服务层（API、存储、toast 等）
+│   ├── layouts/            # 布局组件（MobileShell，含沉浸模式）
+│   ├── utils/              # 工具函数（移动端适配、路由、桥接等）
+│   └── styles/             # 样式文件（desktop/landscape/portrait）
 ├── src-tauri/              # Tauri 2 后端
 │   ├── src/               # Rust 源码
 │   ├── Cargo.toml         # Rust 依赖配置
 │   └── tauri.conf.json    # Tauri 配置
 ├── dist/                   # 前端构建产物
+├── prompts-example.json    # 提示词模板库（12 个结构化模板）
 ├── package.json            # Node.js 依赖
 └── vite.config.js          # Vite 配置
 ```
@@ -123,8 +131,8 @@ npm run tauri build -- --target x86_64-linux-android
 
 ```bash
 # 推送版本标签触发构建
-git tag v2.7.2
-git push origin v2.7.2
+  git tag v2.8.0
+  git push origin v2.8.0
 ```
 
 构建完成后，GitHub Release 会自动上传所有平台的安装包。
@@ -146,6 +154,15 @@ git push origin v2.7.2
 - 使用 Visual Viewport API 处理键盘遮挡
 - 触摸优化的交互体验
 - 移动端原生导航栏
+
+### 沉浸式导航
+
+设置中可开启「沉浸式导航」模式：
+
+- 开启后所有页面隐藏底部导航栏
+- 左上角显示返回按钮（可配置关闭）
+- 底部边缘上滑手势返回
+- 写作页、设定页始终沉浸（不受开关影响）
 
 ## Rust 后端能力
 
@@ -199,6 +216,32 @@ const content = await readFile('/path/to/file.txt')
 | Prompts | `/prompts` | AI 提示词 |
 | Stats | `/stats` | 统计信息 |
 | Tools | `/tools` | 创作工具 |
+
+## AI 全局助手
+
+应用内置全局 AI 助手，可在任何页面唤起：
+
+- **悬浮按钮**：右下角常驻，点击展开侧边抽屉
+- **上下文感知**：在写作页（`/write/:id`）打开时，自动关联当前小说信息（书名、类型、简介、最新章节末尾片段）
+- **快捷指令**：续写、大纲、润色、角色分析一键发送
+- **多轮对话**：历史记录持久化到 localStorage，最多保留 60 条
+- **流式输出**：实时显示生成内容
+
+相关代码：
+- 组件：`src/components/GlobalAssistant.vue`
+- 组合式函数：`src/composables/useGlobalChat.js`
+
+## 提示词模板库
+
+`prompts-example.json` 提供 12 个结构化提示词模板，支持 `{变量占位}`：
+
+| 分类 | 模板 | 说明 |
+|------|------|------|
+| 大纲 | 玄幻修真大纲生成器、章节大纲生成 | 完整修真体系 / 多章大纲 |
+| 角色 | 角色塑造深度分析 | 性格、动机、成长弧光 |
+| 内容 | 古风言情告白场景、对话场景创作、章节续写、文笔润色 | 场景 / 对话 / 续写 / 润色 |
+| 构思 | 科幻AI反叛情节、伏笔埋设与回收、世界观设定构建 | 情节 / 伏笔 / 设定 |
+| 审阅 | 剧情节奏诊断、开头黄金三章优化 | 节奏 / 开头钩子 |
 
 ## 主题与样式
 

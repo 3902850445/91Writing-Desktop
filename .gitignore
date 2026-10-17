@@ -50,3 +50,9 @@ src-tauri/tauri.conf.json.local
 # Git credentials (DO NOT COMMIT)
 .git-credentials
 github_key.txt
+
+# AI generated images (temp)
+generated-images/
+
+# Loomy workbuddy memory
+.workbuddy/

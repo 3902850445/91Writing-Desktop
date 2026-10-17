@@ -142,6 +142,25 @@
           </button>
         </div>
       </div>
+      <label class="m-hint" style="display: flex; gap: 8px; align-items: center; margin-bottom: 8px; margin-top: 12px">
+        <input
+          type="checkbox"
+          :checked="prefs.immersiveNav"
+          @change="setImmersiveNav($event.target.checked)"
+        />
+        沉浸式导航（隐藏底部导航栏）
+      </label>
+      <span class="m-hint" style="display: block; margin-bottom: 8px">
+        开启后所有页面隐藏底部导航栏，靠左上角返回按钮或底部边缘上滑返回。
+      </span>
+      <label v-if="prefs.immersiveNav" class="m-hint" style="display: flex; gap: 8px; align-items: center; margin-bottom: 10px">
+        <input
+          type="checkbox"
+          :checked="prefs.immersiveShowBack"
+          @change="setImmersiveShowBack($event.target.checked)"
+        />
+        显示左上角返回按钮
+      </label>
     </div>
 
     <div class="m-section-title">API 配置</div>
@@ -334,7 +353,7 @@
       </div>
       <div class="m-row-between" style="margin-bottom: 8px">
         <span class="m-muted">界面</span>
-        <span>移动端 v2.7.2</span>
+        <span>移动端 v2.8.0</span>
       </div>
       <div class="m-row-between">
         <span class="m-muted">数据</span>
@@ -382,10 +401,12 @@ const {
   setShowSessionStats,
   setPomodoroMinutes,
   setPreferChapterSummary,
-  setWriterPaper,
-  setChapterWordGoal,
-  setAutosaveMs
-} = usePrefs()
+   setWriterPaper,
+   setChapterWordGoal,
+   setAutosaveMs,
+   setImmersiveNav,
+   setImmersiveShowBack
+ } = usePrefs()
 
 const {
   profiles,
@@ -570,6 +591,6 @@ onMounted(() => {
     appLockOn.value = false
   }
   syncForm()
-  appVersion.value = getNativeVersion() || window.__WRITING91_VERSION__ || '2.7.2-web'
+  appVersion.value = getNativeVersion() || window.__WRITING91_VERSION__ || '2.8.0-web'
 })
 </script>
