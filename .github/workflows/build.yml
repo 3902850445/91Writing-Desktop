@@ -54,14 +54,16 @@ jobs:
             libwebkit2gtk-4.1-dev libssl-dev libgtk-3-dev \
             libayatana-appindicator3-dev librsvg2-dev libjavascriptcoregtk-4.1-dev
 
+      # `shell: bash` is mandatory: the Windows runner defaults to pwsh,
+      # where $(...) would be parsed as PowerShell and yield an empty version.
       - name: Resolve app version
+        shell: bash
         run: echo "TAURI_VERSION=$(jq -r '.version' src-tauri/tauri.conf.json)" >> "$GITHUB_ENV"
 
       - name: Build frontend
         run: npm run build
 
-      # Draft release: all matrix jobs append assets to the SAME draft,
-      # then the `publish` job flips it to published exactly once.
+      # All jobs append to the SAME draft release; `publish` flips it once.
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
         env:
@@ -74,8 +76,13 @@ jobs:
           prerelease: false
           args: ${{ matrix.args }}
 
+  # Runs after the desktop matrix so the draft release already exists and
+  # the APK can be attached to it. tauri-action mis-detects Android builds
+  # and shells out to a desktop `tauri build`, so we drive the CLI directly.
   build-android:
     runs-on: ubuntu-22.04
+    needs: build-desktop
+    if: always() && needs.build-desktop.result != 'cancelled'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -91,18 +98,16 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
+          targets: aarch64-linux-android
 
-      # The runner image ships cmdline-tools/7.0, which is too old to resolve
-      # the `tools` package and breaks every sdkmanager call. Install a
-      # current command-line tools build ourselves instead of relying on
-      # setup-android's version detection.
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
+      # The runner image ships cmdline-tools/7.0, which is too old to
+      # resolve the `tools` package and breaks every sdkmanager call.
       - name: Setup Android SDK
         run: |
           set -euo pipefail
@@ -116,30 +121,22 @@ jobs:
           mv /tmp/cmdline-tools-extract/cmdline-tools "$SDK_ROOT/cmdline-tools/latest"
           echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
           echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
-          export PATH="$SDK_ROOT/cmdline-tools/latest/bin:$SDK_ROOT/platform-tools:$PATH"
+          echo "$SDK_ROOT/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
+          echo "$SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
           yes | sdkmanager --licenses > /dev/null || true
           sdkmanager --install "platform-tools" "platforms;android-34" "build-tools;34.0.0"
-
-      - name: Cache Android SDK
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/tauri
-            ~/.gradle
-          key: android-${{ runner.os }}-${{ hashFiles('src-tauri/tauri.conf.json') }}
 
       - name: Install cargo-ndk
         run: |
           cargo install cargo-ndk --locked
-          rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
+          rustup target add aarch64-linux-android
 
       # gen/android is gitignored, so it must be generated on CI.
       - name: Init Android project
         run: npx tauri android init
 
       # Release signing is optional: with the secrets present we build a
-      # properly signed release, otherwise we fall back to a debug-signed
-      # APK so the job still produces a downloadable artifact.
+      # signed release, otherwise we fall back to a debug-signed APK.
       - name: Configure Android signing
         env:
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
@@ -167,37 +164,53 @@ jobs:
         run: npm run build
 
       - name: Build Tauri Android app
-        uses: tauri-apps/tauri-action@v0
+        shell: bash
+        run: |
+          set -euo pipefail
+          mode_flag=""
+          if [ "${ANDROID_BUILD_MODE}" = "debug" ]; then
+            mode_flag="--debug"
+          fi
+          npx tauri android build --target aarch64 $mode_flag
+
+      - name: Upload APK to the draft release
+        shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ANDROID_BUNDLE_ID: com.writing91.desktop
-          ANDROID_APP_NAME: "91写作"
-        with:
-          tagName: v${{ env.TAURI_VERSION }}
-          releaseName: "91写作 v${{ env.TAURI_VERSION }}"
-          releaseBody: "See the assets below to download and install."
-          releaseDraft: true
-          prerelease: false
-          args: --target aarch64 ${{ env.ANDROID_BUILD_MODE == 'debug' && '--debug' || '' }}
+          TAG: v${{ env.TAURI_VERSION }}
+        run: |
+          set -euo pipefail
+          apk=$(find src-tauri/gen/android/app/build/outputs/apk -name '*.apk' | sort | head -1)
+          if [ -z "$apk" ]; then
+            echo "No APK produced."; exit 1
+          fi
+          echo "Uploading $apk to $TAG"
+          gh release upload "$TAG" "$apk#Android APK" --clobber
 
-  # Publishes the draft release once, after every desktop job settles.
-  # Android is intentionally excluded from `needs` so a mobile-specific
-  # failure cannot block the desktop release from being published.
+  # Publishes the draft release exactly once, after every build settles.
   publish:
     runs-on: ubuntu-22.04
-    needs: build-desktop
-    if: always() && needs.build-desktop.result != 'cancelled'
+    needs: [build-desktop, build-android]
+    if: always() && !cancelled()
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Publish the release
+        shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          set -euo pipefail
           version=$(jq -r '.version' src-tauri/tauri.conf.json)
           tag="v${version}"
+          if ! gh release view "$tag" > /dev/null 2>&1; then
+            echo "Release ${tag} does not exist; nothing to publish."
+            exit 0
+          fi
+          if [ "$(gh release view "$tag" --json isDraft --jq '.isDraft')" != "true" ]; then
+            echo "Release ${tag} is already published."
+            exit 0
+          fi
           echo "Publishing draft release ${tag}"
-          gh release view "$tag" --json isDraft --jq '.isDraft' | grep -q true || {
-            echo "Release ${tag} is not a draft or does not exist yet."; exit 1; }
           gh release edit "$tag" --draft=false
