@@ -1,0 +1,21 @@
+{
+  "name": "91writing-desktop",
+  "version": "2.7.2",
+  "description": "91写作 跨平台桌面端前端",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.12.4",
+    "vue": "^3.3.8",
+    "vue-router": "^4.2.5"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.12.3",
+    "@vitejs/plugin-vue": "^4.4.1",
+    "vite": "^4.5.0"
+  }
+}

@@ -1,0 +1,52 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+src-tauri/target/
+src-tauri/gen/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Cache
+.cache/
+.parcel-cache/
+
+# Coverage
+coverage/
+
+# Package files
+*.tgz
+
+# Rust
+**/*.rs.bk
+
+# Tauri
+src-tauri/tauri.conf.json.local
+
+# Temporary files
+*.tmp
+*.temp
+
+# Git credentials (DO NOT COMMIT)
+.git-credentials
+github_key.txt

@@ -1,0 +1,303 @@
+/**
+ * Portrait (mobile) mode styles for 91writing.
+ * Activated when screen orientation is portrait (height > width).
+ */
+
+/* Portrait mode base styles */
+:root.is-portrait {
+  /* Mobile layout dimensions */
+  --app-max-width: 100%;
+  --app-shadow: none;
+  --nav-position: fixed;
+  --nav-bottom: 0;
+  --nav-max-width: 100%;
+  --content-max-width: 100%;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --keyboard-offset: 0px;
+}
+
+/* Portrait mode: full-screen mobile layout */
+@media (orientation: portrait) {
+  .m-shell {
+    max-width: 100%;
+    margin: 0;
+    box-shadow: none;
+    min-height: 100vh;
+    background: var(--bg, #fff);
+  }
+
+  .m-shell__body {
+    max-width: 100%;
+  }
+
+  /* Bottom nav bar in portrait mode */
+  .m-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    transform: none;
+    max-width: 100%;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    padding: 8px 12px;
+    padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .m-nav__item {
+    flex: 1;
+    padding: 6px 8px;
+    font-size: 11px;
+  }
+
+  .m-nav__item svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  /* Phone portrait: compact layout */
+  @media (max-width: 767px) {
+    .m-shell {
+      max-width: 100%;
+    }
+
+    .m-nav {
+      padding: 6px 8px;
+      padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px));
+    }
+
+    .m-nav__item {
+      padding: 4px 6px;
+      font-size: 10px;
+    }
+
+    .m-nav__item svg {
+      width: 18px;
+      height: 18px;
+    }
+  }
+
+  /* Tablet portrait: larger touch targets */
+  @media (min-width: 768px) and (orientation: portrait) {
+    .m-shell {
+      max-width: 768px;
+      margin: 0 auto;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+    }
+
+    .m-nav {
+      max-width: 768px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    .m-nav__item {
+      padding: 10px 14px;
+      font-size: 13px;
+    }
+
+    .m-nav__item svg {
+      width: 22px;
+      height: 22px;
+    }
+  }
+}
+
+/* Phone portrait specific */
+:root.is-portrait.is-phone {
+  --app-max-width: 100%;
+  --content-max-width: 100%;
+}
+
+/* Tablet portrait specific */
+:root.is-portrait.is-tablet {
+  --app-max-width: 768px;
+  --content-max-width: 768px;
+  --nav-max-width: 768px;
+}
+
+/* Desktop portrait specific */
+:root.is-portrait.is-desktop {
+  --app-max-width: 480px;
+  --content-max-width: 480px;
+  --nav-max-width: 480px;
+}
+
+/* Mobile portrait: touch optimizations */
+@media (orientation: portrait) and (pointer: coarse) {
+  /* Increase touch target size */
+  button,
+  a,
+  input,
+  textarea,
+  select {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Remove hover effects on touch */
+  .m-nav__item:hover {
+    background: transparent;
+  }
+}
+
+/* Mobile portrait: keyboard handling */
+@media (orientation: portrait) {
+  :root.keyboard-open {
+    --keyboard-offset: var(--app-vh);
+  }
+
+  .m-shell {
+    padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px));
+  }
+
+  :root.keyboard-open .m-shell {
+    padding-bottom: calc(60px + var(--keyboard-offset));
+  }
+}
+
+/* Mobile portrait: safe area handling */
+@media (orientation: portrait) {
+  .m-shell {
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+  }
+
+  .m-nav {
+    padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* Mobile portrait: scroll behavior */
+@media (orientation: portrait) {
+  html {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    overflow-x: hidden;
+    overscroll-behavior: none;
+  }
+}
+
+/* Mobile portrait: text selection */
+@media (orientation: portrait) {
+  ::selection {
+    background: #4a9eff;
+    color: #fff;
+  }
+}
+
+/* Mobile portrait: focus styles */
+@media (orientation: portrait) {
+  button:focus,
+  a:focus,
+  input:focus,
+  textarea:focus {
+    outline: none;
+  }
+
+  button:active,
+  a:active,
+  input:active,
+  textarea:active {
+    background: rgba(0, 0, 0, 0.05);
+  }
+}
+
+/* Mobile portrait: font smoothing */
+@media (orientation: portrait) {
+  body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/**
+ * Forced orientation styles for manual switching (desktop only)
+ */
+
+/* Force landscape mode */
+:root.force-landscape {
+  --app-max-width: 100%;
+  --content-max-width: 100%;
+  --nav-max-width: 100%;
+  --safe-top: 0px;
+  --safe-bottom: 0px;
+  --safe-left: 0px;
+  --safe-right: 0px;
+}
+
+:root.force-landscape .m-shell {
+  max-width: 100%;
+  margin: 0;
+  box-shadow: none;
+  min-height: 100vh;
+}
+
+:root.force-landscape .m-nav {
+  max-width: 100%;
+  left: 0;
+  transform: none;
+}
+
+/* Force portrait mode */
+:root.force-portrait {
+  --app-max-width: 480px;
+  --content-max-width: 480px;
+  --nav-max-width: 480px;
+  --safe-top: 0px;
+  --safe-bottom: 0px;
+  --safe-left: 0px;
+  --safe-right: 0px;
+}
+
+:root.force-portrait .m-shell {
+  max-width: 480px;
+  margin: 0 auto;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+  min-height: 100vh;
+}
+
+:root.force-portrait .m-nav {
+  max-width: 480px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+/* Mobile devices: force portrait */
+@media (pointer: coarse) {
+  :root.is-phone,
+  :root.is-tablet {
+    --app-max-width: 100%;
+    --content-max-width: 100%;
+    --nav-max-width: 100%;
+  }
+
+  :root.is-phone.force-landscape,
+  :root.is-tablet.force-landscape {
+    /* Override forced landscape on mobile */
+    --app-max-width: 100%;
+    --content-max-width: 100%;
+    --nav-max-width: 100%;
+  }
+
+  :root.is-phone .m-shell,
+  :root.is-tablet .m-shell {
+    max-width: 100%;
+    margin: 0;
+    box-shadow: none;
+  }
+
+  :root.is-phone .m-nav,
+  :root.is-tablet .m-nav {
+    max-width: 100%;
+    left: 0;
+    transform: none;
+  }
+}

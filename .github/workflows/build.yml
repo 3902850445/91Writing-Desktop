@@ -1,0 +1,154 @@
+name: Build Tauri App
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-desktop:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: x86_64-pc-windows-msvc
+            runner: windows-latest
+            args: ''
+          - platform: aarch64-apple-darwin
+            runner: macos-latest
+            args: '--target aarch64-apple-darwin'
+          - platform: x86_64-apple-darwin
+            runner: macos-latest
+            args: '--target x86_64-apple-darwin'
+          - platform: x86_64-unknown-linux-gnu
+            runner: ubuntu-22.04
+            args: ''
+
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Node dependencies
+        run: npm install
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform }}
+
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev libssl-dev libgtk-3-dev \
+            libayatana-appindicator3-dev librsvg2-dev libjavascriptcoregtk-4.1-dev
+
+      - name: Resolve app version
+        run: echo "TAURI_VERSION=$(jq -r '.version' src-tauri/tauri.conf.json)" >> "$GITHUB_ENV"
+
+      - name: Build frontend
+        run: npm run build
+
+      # Draft release: all matrix jobs append assets to the SAME draft,
+      # then the `publish` job flips it to published exactly once.
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: v${{ env.TAURI_VERSION }}
+          releaseName: "91写作 v${{ env.TAURI_VERSION }}"
+          releaseBody: "See the assets below to download and install."
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}
+
+  build-android:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Node dependencies
+        run: npm install
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install cargo-ndk
+        run: |
+          cargo install cargo-ndk --locked
+          rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
+
+      # gen/android is gitignored, so it must be generated on CI.
+      - name: Init Android project
+        run: npm run tauri android init
+
+      - name: Resolve app version
+        run: echo "TAURI_VERSION=$(jq -r '.version' src-tauri/tauri.conf.json)" >> "$GITHUB_ENV"
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Build Tauri Android app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ANDROID_BUNDLE_ID: com.writing91.desktop
+          ANDROID_APP_NAME: "91写作"
+        with:
+          tagName: v${{ env.TAURI_VERSION }}
+          releaseName: "91写作 v${{ env.TAURI_VERSION }}"
+          releaseBody: "See the assets below to download and install."
+          releaseDraft: true
+          prerelease: false
+          args: --target aarch64
+
+  # Publishes the draft release once, after every desktop job settles.
+  # Android is intentionally excluded from `needs` so a mobile-specific
+  # failure cannot block the desktop release from being published.
+  publish:
+    runs-on: ubuntu-22.04
+    needs: build-desktop
+    if: always() && needs.build-desktop.result != 'cancelled'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Publish the release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          version=$(jq -r '.version' src-tauri/tauri.conf.json)
+          tag="v${version}"
+          echo "Publishing draft release ${tag}"
+          gh release view "$tag" --json isDraft --jq '.isDraft' | grep -q true || {
+            echo "Release ${tag} is not a draft or does not exist yet."; exit 1; }
+          gh release edit "$tag" --draft=false

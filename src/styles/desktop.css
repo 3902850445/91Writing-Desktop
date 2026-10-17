@@ -1,0 +1,163 @@
+/**
+ * Desktop adaptation for 91writing Tauri app.
+ * Desktop keeps mobile UI but centers it in a phone-like frame.
+ */
+
+/* Desktop-specific adjustments */
+:root {
+  /* Desktop window can be wider, but UI stays mobile-style */
+  --app-max-width: 480px;
+  --app-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+}
+
+/* Center the app in a phone-like frame on desktop */
+.m-shell {
+  max-width: var(--app-max-width);
+  margin: 0 auto;
+  min-height: 100vh;
+  box-shadow: var(--app-shadow);
+  background: var(--bg, #fff);
+}
+
+/* Desktop-specific nav adjustments */
+@media (min-width: 768px) {
+  .m-shell {
+    max-width: 480px;
+    border-radius: 0;
+  }
+
+  /* Remove touch-specific optimizations on desktop */
+  .m-nav {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: var(--app-max-width);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+}
+
+/* Desktop keyboard handling */
+@media (pointer: fine) {
+  :root {
+    /* Desktop has physical keyboard */
+    --keyboard-offset: 0px;
+  }
+}
+
+/* Desktop font rendering */
+@media (min-width: 768px) {
+  body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* Desktop scrollbar styling */
+@media (min-width: 768px) {
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.3);
+  }
+}
+
+/* Desktop focus styles */
+@media (pointer: fine) {
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    outline: 2px solid #4a9eff;
+    outline-offset: 2px;
+  }
+}
+
+/* Desktop text selection */
+@media (pointer: fine) {
+  ::selection {
+    background: #4a9eff;
+    color: #fff;
+  }
+}
+
+/* Desktop cursor styles */
+@media (pointer: fine) {
+  .m-nav__item {
+    cursor: pointer;
+  }
+
+  .m-nav__item:hover {
+    background: rgba(0, 0, 0, 0.05);
+  }
+}
+
+/* Desktop transitions */
+@media (min-width: 768px) {
+  .m-nav__item,
+  button,
+  a {
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+}
+
+/* Desktop safe area (desktop doesn't have safe areas) */
+@media (min-width: 768px) {
+  :root {
+    --safe-top: 0px;
+    --safe-bottom: 0px;
+    --safe-left: 0px;
+    --safe-right: 0px;
+  }
+}
+
+/* Desktop hover effects */
+@media (hover: hover) {
+  .m-nav__item:hover {
+    background: rgba(0, 0, 0, 0.08);
+  }
+
+  .m-nav__item.is-active:hover {
+    background: rgba(74, 158, 255, 0.1);
+  }
+}
+
+/* Desktop animations */
+@media (prefers-reduced-motion: no-preference) {
+  .m-shell {
+    animation: fadeIn 0.3s ease-out;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Desktop tooltip support */
+@media (min-width: 768px) {
+  [title] {
+    cursor: help;
+  }
+}
