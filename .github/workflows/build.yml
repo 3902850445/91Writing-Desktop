@@ -93,16 +93,40 @@ jobs:
         with:
           targets: aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
 
-      # The runner image ships a cmdline-tools build that setup-android@v3
-      # rejects, so pin the action to v2 which manages the SDK itself.
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v2
-
+      # The runner image ships cmdline-tools/7.0, which is too old to resolve
+      # the `tools` package and breaks every sdkmanager call. Install a
+      # current command-line tools build ourselves instead of relying on
+      # setup-android's version detection.
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
+
+      - name: Setup Android SDK
+        run: |
+          set -euo pipefail
+          SDK_ROOT="${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}"
+          TOOLS_VERSION="11076708"   # cmdline-tools 12.0
+          rm -rf "$SDK_ROOT/cmdline-tools"
+          mkdir -p "$SDK_ROOT/cmdline-tools"
+          curl -fsSL -o /tmp/cmdline-tools.zip \
+            "https://dl.google.com/android/repository/commandlinetools-linux-${TOOLS_VERSION}_latest.zip"
+          unzip -q /tmp/cmdline-tools.zip -d /tmp/cmdline-tools-extract
+          mv /tmp/cmdline-tools-extract/cmdline-tools "$SDK_ROOT/cmdline-tools/latest"
+          echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
+          export PATH="$SDK_ROOT/cmdline-tools/latest/bin:$SDK_ROOT/platform-tools:$PATH"
+          yes | sdkmanager --licenses > /dev/null || true
+          sdkmanager --install "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+
+      - name: Cache Android SDK
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/tauri
+            ~/.gradle
+          key: android-${{ runner.os }}-${{ hashFiles('src-tauri/tauri.conf.json') }}
 
       - name: Install cargo-ndk
         run: |
@@ -112,6 +136,29 @@ jobs:
       # gen/android is gitignored, so it must be generated on CI.
       - name: Init Android project
         run: npx tauri android init
+
+      # Release signing is optional: with the secrets present we build a
+      # properly signed release, otherwise we fall back to a debug-signed
+      # APK so the job still produces a downloadable artifact.
+      - name: Configure Android signing
+        env:
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEY_BASE64: ${{ secrets.ANDROID_KEY_BASE64 }}
+        run: |
+          set -euo pipefail
+          if [ -n "${ANDROID_KEY_BASE64:-}" ] && [ -n "${ANDROID_KEY_ALIAS:-}" ] && [ -n "${ANDROID_KEY_PASSWORD:-}" ]; then
+            cd src-tauri/gen/android
+            printf 'keyAlias=%s\n' "$ANDROID_KEY_ALIAS" > keystore.properties
+            printf 'password=%s\n' "$ANDROID_KEY_PASSWORD" >> keystore.properties
+            printf '%s' "$ANDROID_KEY_BASE64" | base64 -d > "$RUNNER_TEMP/keystore.jks"
+            printf 'storeFile=%s\n' "$RUNNER_TEMP/keystore.jks" >> keystore.properties
+            echo "ANDROID_BUILD_MODE=release" >> "$GITHUB_ENV"
+            echo "Release signing configured."
+          else
+            echo "ANDROID_BUILD_MODE=debug" >> "$GITHUB_ENV"
+            echo "No Android keystore secrets found; building debug-signed APK."
+          fi
 
       - name: Resolve app version
         run: echo "TAURI_VERSION=$(jq -r '.version' src-tauri/tauri.conf.json)" >> "$GITHUB_ENV"
@@ -131,7 +178,7 @@ jobs:
           releaseBody: "See the assets below to download and install."
           releaseDraft: true
           prerelease: false
-          args: --target aarch64
+          args: --target aarch64 ${{ env.ANDROID_BUILD_MODE == 'debug' && '--debug' || '' }}
 
   # Publishes the draft release once, after every desktop job settles.
   # Android is intentionally excluded from `needs` so a mobile-specific
