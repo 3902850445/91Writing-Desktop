@@ -9,6 +9,12 @@ on:
 permissions:
   contents: write
 
+# The official-channel API key is injected at build time, never committed.
+# Configure it as a repository secret named VITE_OFFICIAL_API_KEY; local
+# builds fall back to the git-ignored .env.local.
+env:
+  VITE_OFFICIAL_API_KEY: ${{ secrets.VITE_OFFICIAL_API_KEY }}
+
 jobs:
   build-desktop:
     strategy:

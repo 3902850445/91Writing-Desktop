@@ -4,12 +4,16 @@
 import { ref, computed } from 'vue'
 import apiService from '../services/api.js'
 
-const OFFICIAL_BASE = 'https://ai.91hub.vip/v1'
+const OFFICIAL_BASE = 'https://geekai.co/api/v1'
+
+// Shipped via .env.local (git-ignored) or a VITE_OFFICIAL_API_KEY secret at
+// build time. Keeping it out of tracked source matters: this repo is public.
+const OFFICIAL_KEY = import.meta.env?.VITE_OFFICIAL_API_KEY || ''
 
 const official = ref({
-  apiKey: '',
+  apiKey: OFFICIAL_KEY,
   baseURL: OFFICIAL_BASE,
-  selectedModel: 'claude-4-sonnet',
+  selectedModel: 'claude-sonnet-4-5',
   maxTokens: 4096,
   temperature: 0.7
 })
@@ -28,9 +32,9 @@ const ready = ref(false)
 function load() {
   // Always rebuild from storage so import/reset cannot leave stale secrets in memory
   const officialDefaults = {
-    apiKey: '',
+    apiKey: OFFICIAL_KEY,
     baseURL: OFFICIAL_BASE,
-    selectedModel: 'claude-4-sonnet',
+    selectedModel: 'claude-sonnet-4-5',
     maxTokens: 4096,
     temperature: 0.7
   }
@@ -162,14 +166,14 @@ export function useApiConfig() {
   }
 
   const COMMON_MODELS = [
-    'gpt-4o-mini',
+    'claude-sonnet-4-5',
+    'claude-opus-4-5',
     'gpt-4o',
+    'gpt-4o-mini',
     'gpt-3.5-turbo',
-    'claude-3-5-sonnet',
-    'claude-4-sonnet',
-    'deepseek-chat',
-    'deepseek-reasoner',
-    'gemini-2.0-flash'
+    'deepseek-v4-pro',
+    'deepseek-v4-flash',
+    'gemini-2.5-pro'
   ]
 
   return {
