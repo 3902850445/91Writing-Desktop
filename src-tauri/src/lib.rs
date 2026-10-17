@@ -134,26 +134,23 @@ fn log_message(level: String, category: String, message: String, details: serde_
 pub fn run() {
     log::info!("[91Writing] Application starting...");
     
+    // The log level must be decided at registration time. Registering
+    // tauri-plugin-log a second time is a hard failure: the Rust logging
+    // facade only accepts `set_boxed_logger` once per process, so the
+    // duplicate registration errors out and takes the whole app down.
+    let log_level = if cfg!(debug_assertions) {
+        log::LevelFilter::Debug
+    } else {
+        log::LevelFilter::Info
+    };
+
     tauri::Builder::default()
         .plugin(tauri_plugin_log::Builder::default()
-            .level(log::LevelFilter::Info)
+            .level(log_level)
             .build())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
-        .setup(|app| {
-            log::info!("[91Writing] Application setup started");
-            
-            if cfg!(debug_assertions) {
-                log::info!("[91Writing] Debug build detected");
-                app.handle().plugin(
-                    tauri_plugin_log::Builder::default()
-                        .level(log::LevelFilter::Debug)
-                        .build(),
-                )?;
-            } else {
-                log::info!("[91Writing] Release build detected");
-            }
-            
+        .setup(|_app| {
             log::info!("[91Writing] Application setup completed");
             Ok(())
         })
@@ -165,7 +162,12 @@ pub fn run() {
             log_message
         ])
         .run(tauri::generate_context!())
-        .expect("error while building tauri application");
-    
+        .unwrap_or_else(|e| {
+            // Panicking here surfaces as an instant crash on Android, so
+            // report the real reason through the log instead.
+            log::error!("[91Writing] failed to start: {e}");
+            std::process::exit(1);
+        });
+
     log::info!("[91Writing] Application shutdown");
 }
