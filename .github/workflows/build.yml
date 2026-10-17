@@ -93,8 +93,10 @@ jobs:
         with:
           targets: aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
 
+      # The runner image ships a cmdline-tools build that setup-android@v3
+      # rejects, so pin the action to v2 which manages the SDK itself.
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v2
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -109,7 +111,7 @@ jobs:
 
       # gen/android is gitignored, so it must be generated on CI.
       - name: Init Android project
-        run: npm run tauri android init
+        run: npx tauri android init
 
       - name: Resolve app version
         run: echo "TAURI_VERSION=$(jq -r '.version' src-tauri/tauri.conf.json)" >> "$GITHUB_ENV"
