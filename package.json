@@ -1,6 +1,6 @@
 {
   "name": "91writing-desktop",
-  "version": "2.9.0",
+  "version": "2.9.1",
   "description": "91写作 跨平台桌面端前端",
   "type": "module",
   "scripts": {
