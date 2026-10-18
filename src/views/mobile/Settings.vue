@@ -341,6 +341,84 @@
       </div>
     </div>
 
+    <div class="m-section-title">系统日志</div>
+    <div class="m-card" style="margin-bottom: 16px">
+      <div class="m-row-between" style="margin-bottom: 10px">
+        <span class="m-hint">
+          总 {{ stats.total }} 条
+          <strong :style="{ color: hasErrors ? 'var(--danger)' : 'var(--success)' }">
+            {{ hasErrors ? `${stats.errors} 条错误` : '无错误' }}
+          </strong>
+        </span>
+        <button type="button" class="m-btn m-btn--ghost m-btn--sm" @click="refresh">刷新</button>
+      </div>
+
+      <!-- 筛选器 -->
+      <div style="display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap">
+        <select v-model="filterLevel" class="m-select" style="flex: 1; min-width: 100px">
+          <option value="all">全部级别</option>
+          <option value="DEBUG">DEBUG</option>
+          <option value="INFO">INFO</option>
+          <option value="WARN">WARN</option>
+          <option value="ERROR">ERROR</option>
+          <option value="FATAL">FATAL</option>
+        </select>
+        <select v-model="filterCategory" class="m-select" style="flex: 1; min-width: 100px">
+          <option value="all">全部分类</option>
+          <option value="APP_INIT">APP_INIT</option>
+          <option value="STORAGE">STORAGE</option>
+          <option value="API">API</option>
+          <option value="ROUTER">ROUTER</option>
+          <option value="COMPOSABLE">COMPOSABLE</option>
+          <option value="UI">UI</option>
+          <option value="FILE_OPS">FILE_OPS</option>
+          <option value="BACKUP">BACKUP</option>
+          <option value="SETTINGS">SETTINGS</option>
+          <option value="TAURI_BRIDGE">TAURI_BRIDGE</option>
+        </select>
+      </div>
+
+      <!-- 日志列表 -->
+      <div class="m-log-list">
+        <div v-if="filteredLogs.length === 0" class="m-hint" style="padding: 16px 0; text-align: center">
+          暂无日志记录
+        </div>
+        <div
+          v-for="entry in filteredLogs.slice(0, 50)"
+          :key="entry.timestamp + entry.message"
+          class="m-log-item"
+          :class="`m-log-item--${entry.level.toLowerCase()}`"
+        >
+          <div class="m-log-item__head" @click="toggleExpand(entry.timestamp + entry.message)">
+            <span class="m-log-item__level">{{ entry.level }}</span>
+            <span class="m-log-item__category">{{ entry.category }}</span>
+            <span class="m-log-item__message">{{ entry.message }}</span>
+            <span class="m-log-item__time">{{ formatTime(entry.timestamp) }}</span>
+          </div>
+          <div v-if="expandedId === entry.timestamp + entry.message" class="m-log-item__detail">
+            <pre v-if="entry.details && Object.keys(entry.details).length">{{ JSON.stringify(entry.details, null, 2) }}</pre>
+            <pre v-if="entry.stackTrace" class="m-log-item__stack">{{ entry.stackTrace }}</pre>
+          </div>
+        </div>
+        <p v-if="filteredLogs.length > 50" class="m-hint" style="text-align: center; margin-top: 8px">
+          仅显示前 50 条，共 {{ filteredLogs.length }} 条。请导出查看全部。
+        </p>
+      </div>
+
+      <!-- 操作按钮 -->
+      <div class="m-btn-row" style="margin-top: 12px">
+        <button type="button" class="m-btn m-btn--ghost m-btn--sm" @click="downloadLogs('txt')">
+          导出文本
+        </button>
+        <button type="button" class="m-btn m-btn--ghost m-btn--sm" @click="downloadLogs('json')">
+          导出 JSON
+        </button>
+        <button type="button" class="m-btn m-btn--danger m-btn--sm" @click="clearAll">
+          清空日志
+        </button>
+      </div>
+    </div>
+
     <div class="m-section-title">关于</div>
     <div class="m-card">
       <div class="m-row-between" style="margin-bottom: 8px">
@@ -372,6 +450,7 @@ import { useApiConfig } from '../../composables/useApiConfig.js'
 import { usePrefs } from '../../composables/usePrefs.js'
 import { useModelProfiles } from '../../composables/useModelProfiles.js'
 import { useWebDav } from '../../composables/useWebDav.js'
+import { useSystemLogs } from '../../composables/useSystemLogs.js'
 import apiService from '../../services/api.js'
 import toast from '../../services/toast.js'
 import { getNativeVersion, setAppLockEnabled } from '../../utils/bridge.js'
@@ -444,6 +523,29 @@ const form = reactive({
 
 const testing = ref(false)
 const appVersion = ref(getNativeVersion() || '2.2.0-web')
+
+const {
+  logs,
+  filteredLogs,
+  stats,
+  hasErrors,
+  filterLevel,
+  filterCategory,
+  expandedId,
+  refresh,
+  downloadLogs,
+  clearAll,
+  toggleExpand
+} = useSystemLogs()
+
+function formatTime(ts) {
+  try {
+    const d = new Date(ts)
+    return d.toLocaleTimeString('zh-CN', { hour12: false })
+  } catch {
+    return ''
+  }
+}
 
 function syncForm() {
   const src = configType.value === 'official' ? official.value : custom.value
@@ -592,5 +694,6 @@ onMounted(() => {
   }
   syncForm()
   appVersion.value = getNativeVersion() || window.__WRITING91_VERSION__ || '2.8.0-web'
+  refresh()
 })
 </script>

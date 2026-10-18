@@ -1530,3 +1530,128 @@ html.is-offline .m-shell {
   /* banner height ~28px + safe-area already in ::before padding-top */
   padding-top: calc(28px + env(safe-area-inset-top, 0px));
 }
+
+/* ---------- system logs ---------- */
+
+.m-log-list {
+  max-height: 320px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-soft);
+}
+
+.m-log-item {
+  border-bottom: 1px solid var(--border);
+}
+
+.m-log-item:last-child {
+  border-bottom: none;
+}
+
+.m-log-item__head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  cursor: pointer;
+  transition: background 0.15s;
+  font-size: 0.78rem;
+}
+
+.m-log-item__head:hover {
+  background: var(--bg-card);
+}
+
+.m-log-item__level {
+  flex-shrink: 0;
+  width: 48px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-align: center;
+  padding: 2px 0;
+  border-radius: 4px;
+  background: var(--bg-card);
+  color: var(--text-muted);
+}
+
+.m-log-item--debug .m-log-item__level {
+  background: var(--bg-card);
+  color: var(--text-muted);
+}
+
+.m-log-item--info .m-log-item__level {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.m-log-item--warn .m-log-item__level {
+  background: var(--accent-gold-soft);
+  color: var(--warning);
+}
+
+.m-log-item--error .m-log-item__level,
+.m-log-item--fatal .m-log-item__level {
+  background: color-mix(in srgb, var(--danger) 22%, transparent);
+  color: var(--danger);
+}
+
+.m-log-item__category {
+  flex-shrink: 0;
+  width: 90px;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.m-log-item__message {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.m-log-item--error .m-log-item__message,
+.m-log-item--fatal .m-log-item__message {
+  color: var(--text);
+}
+
+.m-log-item__time {
+  flex-shrink: 0;
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.m-log-item__detail {
+  padding: 8px 10px;
+  background: var(--bg-elevated);
+  border-top: 1px solid var(--border);
+  font-size: 0.72rem;
+}
+
+.m-log-item__detail pre {
+  margin: 0 0 6px;
+  padding: 6px 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow-x: auto;
+  font-size: 0.7rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+  font-family: 'SF Mono', 'Consolas', 'Monaco', monospace;
+}
+
+.m-log-item__detail pre:last-child {
+  margin-bottom: 0;
+}
+
+.m-log-item__stack {
+  color: var(--danger);
+}
