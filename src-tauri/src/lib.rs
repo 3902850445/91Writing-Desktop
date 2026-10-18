@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use tauri::Manager;
+use base64::Engine;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AppInfo {
@@ -126,8 +127,127 @@ fn get_data_dir(app: tauri::AppHandle) -> Result<String, String> {
 
 /// Log message from frontend
 #[tauri::command]
-fn log_message(level: String, category: String, message: String, details: serde_json::Value, timestamp: String) {
+fn log_message(level: String, category: String, message: String, details: serde_json::Value, _timestamp: String) {
     log::info!("[{}] {}: {} (details: {})", level, category, message, details);
+}
+
+/// Parse a DOCX file (base64 encoded) and extract plain text
+/// DOCX is a ZIP archive containing word/document.xml
+#[tauri::command]
+fn parse_docx(base64_content: String) -> Result<String, String> {
+    log::info!("[parse_docx] Called, base64 length: {}", base64_content.len());
+
+    // Decode base64 using Engine API (0.22+)
+    let engine = base64::engine::general_purpose::STANDARD;
+    let bytes = match engine.decode(&base64_content) {
+        Ok(b) => b,
+        Err(e) => {
+            log::error!("[parse_docx] Failed to decode base64: {}", e);
+            return Err(format!("Base64 decode failed: {}", e));
+        }
+    };
+
+    log::debug!("[parse_docx] Decoded {} bytes", bytes.len());
+
+    // Open as ZIP archive
+    let cursor = std::io::Cursor::new(bytes);
+    let mut archive = match zip::ZipArchive::new(cursor) {
+        Ok(a) => a,
+        Err(e) => {
+            log::error!("[parse_docx] Failed to open zip: {}", e);
+            return Err(format!("Failed to open docx: {}", e));
+        }
+    };
+
+    // Find word/document.xml
+    let mut text_parts = Vec::new();
+    for i in 0..archive.len() {
+        let mut entry = match archive.by_index(i) {
+            Ok(e) => e,
+            Err(e) => {
+                log::warn!("[parse_docx] Failed to read entry {}: {}", i, e);
+                continue;
+            }
+        };
+
+        let name = entry.name().to_string();
+        if name == "word/document.xml" {
+            log::info!("[parse_docx] Found word/document.xml");
+            let mut content = String::new();
+            if let Err(e) = std::io::Read::read_to_string(&mut entry, &mut content) {
+                log::error!("[parse_docx] Failed to read document.xml: {}", e);
+                return Err(format!("Failed to read document: {}", e));
+            }
+
+            // Extract text from XML - simple approach: extract <w:t> content
+            let mut in_text = false;
+            let mut current_text = String::new();
+            let mut chars = content.chars().peekable();
+
+            while let Some(c) = chars.next() {
+                if c == '<' {
+                    // Check if this is <w:t> or </w:t>
+                    if let Some('w') = chars.peek() {
+                        let mut tag = String::from("<");
+                        tag.push('w');
+                        if let Some(':') = chars.next() {
+                            tag.push(':');
+                            if let Some('t') = chars.next() {
+                                tag.push('t');
+                                if let Some('>') = chars.next() {
+                                    tag.push('>');
+                                    if tag == "<w:t>" {
+                                        in_text = true;
+                                        continue;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    // Check for </w:t>
+                    if let Some('w') = chars.peek() {
+                        let mut tag = String::from("</");
+                        tag.push('w');
+                        if let Some(':') = chars.next() {
+                            tag.push(':');
+                            if let Some('t') = chars.next() {
+                                tag.push('t');
+                                if let Some('>') = chars.next() {
+                                    tag.push('>');
+                                    if tag == "</w:t>" {
+                                        in_text = false;
+                                        if !current_text.is_empty() {
+                                            text_parts.push(std::mem::take(&mut current_text));
+                                        }
+                                        continue;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if in_text {
+                    if c == '\n' || c == '\r' {
+                        // Skip whitespace in text runs
+                    } else {
+                        current_text.push(c);
+                    }
+                }
+            }
+
+            // Don't forget the last text run
+            if !current_text.is_empty() {
+                text_parts.push(current_text);
+            }
+
+            let result = text_parts.join("\n");
+            log::info!("[parse_docx] Extracted {} chars of text", result.len());
+            return Ok(result);
+        }
+    }
+
+    Err("word/document.xml not found in docx".to_string())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -159,7 +279,8 @@ pub fn run() {
             save_file,
             read_file,
             get_data_dir,
-            log_message
+            log_message,
+            parse_docx
         ])
         .run(tauri::generate_context!())
         .unwrap_or_else(|e| {

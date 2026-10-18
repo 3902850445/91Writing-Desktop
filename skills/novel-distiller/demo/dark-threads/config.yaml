@@ -1,0 +1,53 @@
+# 暗线追踪配置
+# 定义需要跨章节追踪的数值状态和暗线变量
+
+variables:
+  - name: 功德值
+    key: merit
+    type: number
+    initial: 0
+    description: 主角累计功德
+
+  - name: 难印
+    key: tribulation
+    type: number
+    initial: 0
+    description: 取经难数（目标81难）
+
+  - name: 境界
+    key: realm
+    type: string
+    initial: "太乙金仙"
+    description: 主角当前境界
+
+  - name: 紧箍咒激活次数
+    key: headband_trigger
+    type: number
+    initial: 0
+    description: 唐僧念紧箍咒累计次数
+
+dark_threads:
+  - name: 牛魔王态度转变
+    key: niu_mowang_attitude
+    stages:
+      - "敌对"
+      - "试探"
+      - "合作"
+      - "结盟"
+    current_stage: 0
+    description: 牛魔王对孙悟空的态度变化暗线
+
+  - name: 火焰山封印之谜
+    key: flame_mountain_seal
+    stages:
+      - "未知"
+      - "发现符文"
+      - "解读符文"
+      - "解开封印"
+    current_stage: 0
+    description: 岩浆河底古老封印的揭秘进度
+
+rules:
+  - 每章必须至少有一条暗线有推进
+  - 数值变化必须在 snapshot 中记录变化原因
+  - 角色状态变化需与剧情一致

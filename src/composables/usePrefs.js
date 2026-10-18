@@ -25,10 +25,10 @@ const prefs = ref({
   chapterWordGoal: 0,
    /** autosave delay ms */
    autosaveMs: 800,
-   /** 沉浸式导航：开启后全局隐藏底部导航栏，靠边缘手势返回 */
-   immersiveNav: false,
-   /** 沉浸式导航时是否显示返回按钮（左上角） */
-   immersiveShowBack: true
+    /** 沉浸式导航：开启后全局隐藏底部导航栏，靠边缘手势返回（默认开启） */
+    immersiveNav: true,
+    /** 沉浸式导航时是否显示返回按钮（左上角） */
+    immersiveShowBack: true
 })
 let loaded = false
 
@@ -50,8 +50,8 @@ function load() {
         writerPaper: 'default',
          chapterWordGoal: 0,
          autosaveMs: 800,
-         immersiveNav: false,
-         immersiveShowBack: true
+          immersiveNav: true,
+          immersiveShowBack: true
        }
       prefs.value = { ...defaults, ...JSON.parse(raw) }
     }

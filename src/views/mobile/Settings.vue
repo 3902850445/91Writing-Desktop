@@ -431,7 +431,7 @@
       </div>
       <div class="m-row-between" style="margin-bottom: 8px">
         <span class="m-muted">界面</span>
-        <span>移动端 v2.8.0</span>
+          <span>移动端 v2.9.0</span>
       </div>
       <div class="m-row-between">
         <span class="m-muted">数据</span>
@@ -693,7 +693,7 @@ onMounted(() => {
     appLockOn.value = false
   }
   syncForm()
-  appVersion.value = getNativeVersion() || window.__WRITING91_VERSION__ || '2.8.0-web'
+  appVersion.value = getNativeVersion() || window.__WRITING91_VERSION__ || '2.9.0-web'
   refresh()
 })
 </script>

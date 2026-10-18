@@ -42,6 +42,9 @@ function normalizeNovel(raw) {
   n.pinned = !!n.pinned
   n.archived = !!n.archived
   n.volumes = Array.isArray(n.volumes) ? n.volumes : []
+  n.globalSettings = (n.globalSettings && typeof n.globalSettings === 'object')
+    ? n.globalSettings
+    : {}
   n.chapterList = Array.isArray(n.chapterList)
     ? n.chapterList.map((c) => ({
         id: c.id || uid(),

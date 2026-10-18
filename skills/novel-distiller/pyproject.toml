@@ -1,0 +1,54 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "novel-distiller"
+version = "0.1.0"
+description = "World Spirit (WS) 方法论 Harness — 长篇小说创作流水线"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "WS Team"}
+]
+keywords = ["novel", "writing", "agent", "mirofish", "distillation"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Authors",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+dependencies = [
+    "click>=8.0",
+    "pydantic>=2.0",
+    "pyyaml>=6.0",
+    "rich>=13.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-asyncio>=0.21",
+    "black>=23.0",
+    "ruff>=0.1.0",
+]
+
+[project.scripts]
+ws = "novel_distiller.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["novel_distiller*"]
+
+[tool.black]
+line-length = 100
+target-version = ['py310']
+
+[tool.ruff]
+line-length = 100
+select = ["E", "F", "W", "I", "N", "UP"]
+ignore = ["E501"]
