@@ -313,12 +313,21 @@ export function useGlobalChat() {
     await send(action.text)
   }
 
-  /**
-   * 加载本地文件作为对话素材
-   * @param {File[]} fileList - File 对象数组
-   */
-  async function loadFiles(fileList) {
-    if (!fileList || fileList.length === 0) return
+/**
+ * 加载本地文件作为对话素材
+ * 支持两种输入：
+ * 1. HTML5 File 对象数组（桌面端/浏览器）
+ * 2. 已解析的文件对象数组 { name, content, size, ext }（移动端 native bridge）
+ * @param {Array} fileList
+ */
+async function loadFiles(fileList) {
+  if (!fileList || fileList.length === 0) return
+
+  // 判断是 HTML5 File 对象还是已解析的对象
+  const isHtml5File = fileList[0]?.type !== undefined || fileList[0]?.name !== undefined && !(fileList[0]?.content !== undefined)
+
+  if (isHtml5File) {
+    // HTML5 File 对象：需要读取
     const allowedExts = ['md', 'txt', 'docx', 'markdown']
     const validFiles = fileList.filter((f) => {
       const ext = f.name.split('.').pop()?.toLowerCase() || ''
@@ -340,7 +349,37 @@ export function useGlobalChat() {
     }
 
     return { success: true, count: results.length, message: `已加载 ${results.length} 个文件` }
+  } else {
+    // 已解析的对象（native bridge 返回）
+    const allowedExts = ['md', 'txt', 'docx']
+    const validFiles = fileList.filter((f) => {
+      const ext = f.ext || f.name.split('.').pop()?.toLowerCase() || ''
+      return allowedExts.includes(ext)
+    })
+
+    if (validFiles.length === 0) {
+      return { success: false, message: '仅支持 .md / .txt / .docx 格式' }
+    }
+
+    // 直接使用已解析的内容
+    const results = validFiles.map((f) => ({
+      id: uid(),
+      name: f.name,
+      content: String(f.content || '').slice(0, 50000),
+      size: f.size || String(f.content || '').length,
+      ext: f.ext || f.name.split('.').pop()?.toLowerCase() || ''
+    }))
+    loadedFiles.value.push(...results)
+
+    try {
+      localStorage.setItem(FILE_STORAGE_KEY, JSON.stringify(loadedFiles.value))
+    } catch {
+      /* ignore */
+    }
+
+    return { success: true, count: results.length, message: `已加载 ${results.length} 个文件` }
   }
+}
 
   /** 移除已加载的文件 */
   function removeFile(id) {

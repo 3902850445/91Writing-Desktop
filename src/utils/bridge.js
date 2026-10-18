@@ -8,6 +8,7 @@
  *  - haptic()
  *  - exportText(filename, base64Utf8, mime)
  *  - pickImage() -> async via window.__writing91OnImage(base64dataUrl)
+ *  - pickFile() -> async via window.__writing91OnFile(json: {name, content, size, ext})
  *  - setWidgetStats(json)
  *  - setAppLockEnabled(on)
  */
@@ -98,6 +99,47 @@ export function pickImage() {
     }
     try {
       b.pickImage()
+    } catch {
+      cleanup()
+      resolve(null)
+    }
+  })
+}
+
+/**
+ * Ask native to open file picker for text files (.md/.txt/.docx).
+ * Resolves with array of { name, content, size, ext } or null.
+ */
+export function pickFile() {
+  return new Promise((resolve) => {
+    const b = bridge()
+    if (!b?.pickFile) {
+      resolve(null)
+      return
+    }
+    const timer = setTimeout(() => {
+      cleanup()
+      resolve(null)
+    }, 120000)
+    function cleanup() {
+      clearTimeout(timer)
+      try {
+        delete window.__writing91OnFile
+      } catch {
+        /* ignore */
+      }
+    }
+    window.__writing91OnFile = (json) => {
+      cleanup()
+      try {
+        const data = JSON.parse(json)
+        resolve(Array.isArray(data) ? data : null)
+      } catch {
+        resolve(null)
+      }
+    }
+    try {
+      b.pickFile()
     } catch {
       cleanup()
       resolve(null)

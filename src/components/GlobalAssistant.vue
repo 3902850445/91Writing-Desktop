@@ -1,5 +1,15 @@
 <template>
   <div class="global-assistant">
+    <!-- 隐藏的 HTML5 文件输入（桌面端/浏览器用） -->
+    <input
+      ref="fileInputRef"
+      type="file"
+      multiple
+      accept=".md,.txt,.docx,.markdown"
+      style="display: none"
+      @change="onFileSelect"
+    />
+
     <!-- 悬浮按钮 -->
     <button
       type="button"
@@ -108,17 +118,13 @@
         <div class="ga-files">
           <div class="ga-files__header">
             <span class="ga-files__label">已加载文件（{{ loadedFiles.length }}）</span>
-            <label class="ga-files__add">
-              <input
-                ref="fileInputRef"
-                type="file"
-                multiple
-                accept=".md,.txt,.docx,.markdown"
-                style="display: none"
-                @change="onFileSelect"
-              />
-              <span>+ 添加文件</span>
-            </label>
+            <button
+              type="button"
+              class="ga-files__add"
+              @click="onPickFiles"
+            >
+              + 添加文件
+            </button>
           </div>
           <div v-if="loadedFiles.length === 0" class="ga-files__empty">
             支持 .md / .txt / .docx，作为 AI 对话参考素材
@@ -266,6 +272,8 @@
 import { ref, nextTick, watch } from 'vue'
 import { useGlobalChat } from '../composables/useGlobalChat.js'
 import { getSkillById } from '../composables/useSkillRegistry.js'
+import { pickFile, isAndroidApp } from '../utils/bridge.js'
+import toast from '../services/toast.js'
 import SkillPanel from './SkillPanel.vue'
 
 const {
@@ -307,6 +315,43 @@ function onSkillSelect(id) {
   showSkillPanel.value = false
 }
 
+/**
+ * 文件选择：移动端用 native bridge，桌面端用 HTML5 file input
+ */
+async function onPickFiles() {
+  // 移动端（Android）使用 native bridge 选择文件
+  if (isAndroidApp()) {
+    const files = await pickFile()
+    if (files && files.length > 0) {
+      // native bridge 返回的是已解析的文件对象数组
+      const result = await loadFiles(files)
+      if (result.success) {
+        toast.success(result.message)
+      } else {
+        toast.error(result.message)
+      }
+    }
+    return
+  }
+
+  // 桌面端 / 浏览器使用 HTML5 file input
+  fileInputRef.value?.click()
+}
+
+/** HTML5 file input change handler */
+async function onFileSelect(e) {
+  const files = Array.from(e.target.files || [])
+  if (files.length === 0) return
+  const result = await loadFiles(files)
+  if (result.success) {
+    // 清空 input 以便重复选择同名文件
+    e.target.value = ''
+    toast.success(result.message)
+  } else {
+    toast.error(result.message)
+  }
+}
+
 function renderContent(text) {
   return String(text || '')
     .replace(/&/g, '&amp;')
@@ -339,16 +384,6 @@ async function onEnter() {
     await scrollToBottom()
   } catch (e) {
     console.error('全局助手发送失败:', e)
-  }
-}
-
-async function onFileSelect(e) {
-  const files = Array.from(e.target.files || [])
-  if (files.length === 0) return
-  const result = await loadFiles(files)
-  if (result.success) {
-    // 清空 input 以便重复选择同名文件
-    e.target.value = ''
   }
 }
 
@@ -678,9 +713,17 @@ watch(open, (v) => {
   font-size: 0.75rem;
   color: var(--accent);
   cursor: pointer;
+  border: none;
+  background: none;
+  padding: 2px 6px;
   display: flex;
   align-items: center;
   gap: 4px;
+}
+
+.ga-files__add:hover {
+  background: var(--accent-soft);
+  border-radius: 6px;
 }
 
 .ga-files__empty {
