@@ -14,6 +14,7 @@ import apiService from '../services/api.js'
 import { useNovels } from './useNovels.js'
 import { useGlobalSettings } from './useGlobalSettings.js'
 import { getSkillById, matchSkill } from './useSkillRegistry.js'
+import { parseTaggedContent, formatTaggedContent, getAllTags } from './useNovelTags.js'
 
 const STORAGE_KEY = 'global_ai_chat'
 const MAX_MESSAGES = 60
@@ -180,6 +181,11 @@ export function useGlobalChat() {
         ctx += `\n【写作方法论】\n你应遵循「${skill.name}」方法论：\n${skill.description}\n`
       }
     }
+
+    // 注入标签系统说明
+    const settingTags = ['世界观', '角色', '剧情线', '文风', '伏笔', '时间线', '地点', '物品']
+    const chapterTags = ['大纲', '连续性', '伏笔', '冲突', '悬念', '角色弧光']
+    ctx += `\n【标签系统】\n当用户要求修改设定或生成章节时，请用以下标签标注内容：\n设定标签：${settingTags.map((t) => `[${t}]`).join(' ')}${chapterTags.map((t) => `[${t}]`).join(' ')}\n格式：[标签名]内容。例如：[角色]主角是一个25岁的程序员...[世界观]故事发生在未来世界...`
 
     if (!novel) {
       ctx += '你是小说写作助手，回答简洁，可直接给出可粘贴进正文的段落。当前未关联具体小说。'
@@ -486,6 +492,42 @@ async function loadFiles(fileList) {
     return true
   }
 
+  /**
+   * 将带标签的 AI 内容插入小说全局设定
+   * 根据标签 ID 自动归入对应设定分类
+   * @param {string} taggedText - AI 生成的带标签文本
+   * @returns {{ inserted: Object, unmatched: string[] }} 插入结果
+   */
+  function insertTaggedContentToSettings(taggedText) {
+    if (!currentNovel.value) {
+      return { inserted: {}, unmatched: [taggedText] }
+    }
+
+    const novel = currentNovel.value
+    const { tagged } = parseTaggedContent(taggedText)
+    const existing = { ...(novel.globalSettings || {}) }
+    const unmatched = []
+
+    for (const item of tagged) {
+      if (item.tagId) {
+        // 按标签 ID 归入对应分类
+        const category = item.tagId
+        if (!existing[category]) existing[category] = []
+        existing[category].push(item.content)
+      } else {
+        unmatched.push(item.content)
+      }
+    }
+
+    // 更新小说设定
+    updateNovel(novel.id, { globalSettings: existing })
+
+    return {
+      inserted: existing,
+      unmatched
+    }
+  }
+
   load()
   // 加载待审核提案
   try {
@@ -519,6 +561,10 @@ async function loadFiles(fileList) {
     approveProposal: approveProposalLocal,
     rejectProposal: rejectProposalLocal,
     activeSkillId,
-    autoSelectSkill
+    autoSelectSkill,
+    insertTaggedContentToSettings,
+    parseTaggedContent,
+    formatTaggedContent,
+    getAllTags
   }
 }

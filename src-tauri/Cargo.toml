@@ -1,6 +1,6 @@
 [package]
 name = "writing91-desktop"
-version = "2.9.1"
+version = "2.9.2"
 description = "91写作 跨平台桌面应用"
 authors = ["91Writing Team"]
 license = "MIT"

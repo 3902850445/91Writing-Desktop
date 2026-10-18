@@ -15,6 +15,9 @@
       <button type="button" :class="{ 'is-active': tab === 'studio' }" @click="tab = 'studio'">
         工坊
       </button>
+      <button type="button" :class="{ 'is-active': tab === 'build' }" @click="tab = 'build'">
+        从零构建
+      </button>
     </div>
 
     <!-- Short story -->
@@ -82,7 +85,7 @@
     </template>
 
     <!-- Studio: outline generator -->
-    <template v-else>
+    <template v-else-if="tab === 'studio'">
       <div class="m-field">
         <label>作品名</label>
         <input v-model="studioTitle" class="m-input" placeholder="书名" />
@@ -123,6 +126,78 @@
         创建作品并写入大纲章
       </button>
     </template>
+    <template v-else-if="tab === 'build'">
+      <div class="m-field">
+        <label>作品名</label>
+        <input v-model="buildTitle" class="m-input" placeholder="书名" />
+      </div>
+      <div class="m-field">
+        <label>类型</label>
+        <input v-model="buildGenre" class="m-input" placeholder="玄幻 · 都市 · 科幻" />
+      </div>
+      <div class="m-field">
+        <label>简介（可选）</label>
+        <textarea v-model="buildDesc" class="m-textarea" rows="2" placeholder="一句话简介…" />
+      </div>
+      <div class="m-field">
+        <label>大纲文件（md / txt）</label>
+        <textarea v-model="buildOutline" class="m-textarea" rows="8" placeholder="粘贴大纲内容，或点击下方按钮上传文件…" />
+      </div>
+      <div class="m-btn-row">
+        <button type="button" class="m-btn m-btn--ghost m-btn--sm" @click="pickOutlineFile">上传文件</button>
+        <button type="button" class="m-btn m-btn--ghost m-btn--sm" @click="buildOutline = ''">清空</button>
+      </div>
+      <div v-if="buildProgress" class="m-card" style="margin-top: 10px">
+        <div class="m-row-between">
+          <strong>{{ buildProgress.stage }}</strong>
+          <span class="m-muted">
+            {{ buildProgress.chapterIndex !== undefined
+              ? `${buildProgress.chapterIndex + 1}/${buildProgress.totalChapters}`
+              : '' }}
+          </span>
+        </div>
+        <p v-if="buildProgress.chapterTitle" class="m-muted" style="font-size: 0.85rem">
+          正在生成：{{ buildProgress.chapterTitle }}
+        </p>
+        <div class="m-progress">
+          <div
+            class="m-progress__bar"
+            :style="{
+              width: buildProgress.chapterIndex !== undefined
+                ? ((buildProgress.chapterIndex / buildProgress.totalChapters) * 100) + '%'
+                : '0%'
+            }"
+          />
+        </div>
+      </div>
+      <div v-if="buildError" class="m-card m-card--error" style="margin-top: 10px">
+        {{ buildError }}
+      </div>
+      <div v-if="buildDone" class="m-card m-card--success" style="margin-top: 10px">
+        <p><strong>构建完成！</strong></p>
+        <p class="m-muted" style="font-size: 0.85rem">
+          共 {{ buildResult?.chapters?.length || 0 }} 章，重写 {{ buildResult?.totalAttempts || 0 }} 次
+        </p>
+      </div>
+      <button
+        type="button"
+        class="m-btn m-btn--primary m-btn--block"
+        style="margin-top: 10px"
+        :disabled="buildBusy || !buildTitle.trim() || !buildOutline.trim()"
+        @click="startBuild"
+      >
+        {{ buildBusy ? '生成中…' : '开始构建' }}
+      </button>
+      <button
+        v-if="buildBusy"
+        type="button"
+        class="m-btn m-btn--danger m-btn--block"
+        style="margin-top: 8px"
+        @click="abortBuild"
+      >
+        停止
+      </button>
+    </template>
   </div>
 </template>
 
@@ -131,6 +206,7 @@ import { ref, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { useApiConfig } from '../../composables/useApiConfig.js'
 import { useNovels } from '../../composables/useNovels.js'
+import { buildNovelFromOutline } from '../../composables/useNovelBuilder.js'
 import apiService from '../../services/api.js'
 import toast from '../../services/toast.js'
 import { keepScreenOn } from '../../utils/bridge.js'
@@ -150,6 +226,53 @@ const output = ref('')
 const busy = ref(false)
 const isStreaming = ref(false)
 let abortController = null
+
+// Build from zero state
+const buildTitle = ref('')
+const buildGenre = ref('')
+const buildDesc = ref('')
+const buildOutline = ref('')
+const buildBusy = ref(false)
+const buildProgress = ref(null)
+const buildError = ref('')
+const buildDone = ref(false)
+const buildResult = ref(null)
+let buildAbort = null
+
+// Mobile native file picker via bridge
+const isNative = !!(window.__writing91 && window.__writing91.isNative)
+
+async function pickOutlineFile() {
+  // Mobile: use bridge
+  if (isNative) {
+    window.__writing91.pickFile()
+    return
+  }
+  // Desktop: use hidden input
+  const input = document.createElement('input')
+  input.type = 'file'
+  input.accept = '.md,.txt'
+  input.onchange = async (e) => {
+    const f = e.target.files[0]
+    if (!f) return
+    const text = await f.text()
+    buildOutline.value = text
+  }
+  input.click()
+}
+
+// Handle bridge file callback
+if (typeof window !== 'undefined') {
+  window.__writing91OnFile = (fileData) => {
+    buildOutline.value = fileData
+  }
+}
+
+function abortBuild() {
+  if (buildAbort) {
+    buildAbort.aborted = true
+  }
+}
 
 function ensureApi() {
   if (!isConfigured.value) {
@@ -216,6 +339,10 @@ onBeforeUnmount(() => {
     }
     abortController = null
   }
+  if (buildAbort) {
+    buildAbort.aborted = true
+    buildAbort = null
+  }
   keepScreenOn(false)
 })
 
@@ -277,5 +404,69 @@ async function saveOutlineNovel() {
   }
   toast.success('已创建')
   router.push(`/write/${n.id}`)
+}
+
+async function startBuild() {
+  if (!ensureApi()) return
+  if (!buildTitle.value.trim() || !buildOutline.value.trim()) {
+    toast.warning('请填写作品名和大纲')
+    return
+  }
+
+  // 二次确认
+  if (!confirm(`确定要生成 ${buildOutline.value.split('\n').filter((l) => l.trim()).length} 章吗？此过程可能需要较长时间。`)) {
+    return
+  }
+
+  buildBusy.value = true
+  buildError.value = ''
+  buildDone.value = false
+  buildResult.value = null
+  buildProgress.value = { stage: '准备中', totalChapters: 0 }
+  keepScreenOn(true)
+
+  const signal = { aborted: false }
+  buildAbort = signal
+
+  try {
+    const result = await buildNovelFromOutline({
+      title: buildTitle.value.trim(),
+      genre: buildGenre.value.trim() || 'other',
+      description: buildDesc.value.trim(),
+      outlineText: buildOutline.value,
+      maxRewrites: 3,
+      onProgress: (p) => {
+        buildProgress.value = p
+      },
+      signal
+    })
+
+    if (result.success) {
+      buildDone.value = true
+      buildResult.value = result
+      toast.success('构建完成！')
+      // 3秒后跳转到写作页
+      setTimeout(() => {
+        if (result.novel && result.novel.id) {
+          router.push(`/write/${result.novel.id}`)
+        }
+      }, 3000)
+    } else if (result.interrupted) {
+      buildError.value = `已中止，第 ${result.nextChapterIndex + 1} 章未完成。可重新点击开始构建，将断点续写。`
+      buildDone.value = false
+    } else {
+      buildError.value = result.error || '构建失败'
+    }
+  } catch (e) {
+    if (signal.aborted) {
+      buildError.value = '已中止'
+    } else {
+      buildError.value = e?.message || '构建失败'
+    }
+  } finally {
+    buildBusy.value = false
+    buildAbort = null
+    keepScreenOn(false)
+  }
 }
 </script>

@@ -207,7 +207,7 @@ onUnmounted(() => {
   right: 0;
   bottom: 0;
   height: 24px;
-  z-index: 41;
+  z-index: 39; /* 低于导航栏 z-index:40，不遮挡点击 */
   pointer-events: auto;
 }
 </style>

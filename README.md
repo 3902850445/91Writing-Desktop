@@ -1,4 +1,4 @@
-# 91写作 - 跨平台桌面应用 v2.9.1
+# 91写作 - 跨平台桌面应用 v2.9.2
 
 基于 Tauri 2 + Vue 3 的跨平台写作应用，支持 Windows、macOS、Linux、Android。
 
